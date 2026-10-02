@@ -151,7 +151,7 @@ function render(){
     <div class="ctl"><button id="prevBtn" ${pos===0?'disabled':''}>← 上一題</button>
       ${picked?'':'<button id="showBtn">看答案</button>'}
       <button class="primary" id="nextBtn" ${pos>=list.length-1?'disabled':''}>下一題 →</button></div>
-    <div class="hint">鍵盤：1–4 作答，← → 換題，S 看答案，M 標記</div>`;
+    <div class="hint">答對會自動跳下一題。鍵盤：1–4 作答，← → 換題，S 看答案，M 標記</div>`;
   card.querySelectorAll('.opt').forEach(b=>b.onclick=()=>pick(+b.dataset.k));
   document.getElementById('flagBtn').onclick=toggleMark;
   document.getElementById('prevBtn').onclick=()=>go(-1);
@@ -160,16 +160,19 @@ function render(){
   renderCells();
 }
 function cur(){return list.length?Q[list[pos]]:null}
-function pick(k){const q=cur();if(!q||shown===q[0])return;st.ans[q[0]]=k;shown=q[0];save();render();stats()}
+// 答對：短暫顯示綠色後自動跳下一題；答錯：停在原題，手動按下一題
+let autoTimer=null;
+function pick(k){const q=cur();if(!q||shown===q[0])return;st.ans[q[0]]=k;shown=q[0];save();render();stats();
+  if(k===q[2]&&pos<list.length-1){const at=pos;autoTimer=setTimeout(()=>{autoTimer=null;if(pos===at)go(1)},700)}}
 // 直接看答案視為答錯，會列入錯題本
 function reveal(){const q=cur();if(!q||shown===q[0])return;st.ans[q[0]]=-1;shown=q[0];save();render();stats()}
 function toggleMark(){const q=cur();if(!q)return;if(st.mark[q[0]])delete st.mark[q[0]];else st.mark[q[0]]=1;save();render()}
-function go(d){const n=pos+d;if(n<0||n>=list.length)return;pos=n;shown=null;render();scrollTop()}
+function go(d){clearTimeout(autoTimer);autoTimer=null;const n=pos+d;if(n<0||n>=list.length)return;pos=n;shown=null;render();scrollTop()}
 function scrollTop(){if(window.innerWidth<820)document.getElementById('qcard').scrollIntoView({block:'start'})}
 function jumpTo(no){
   let idx=list.findIndex(i=>Q[i][0]===no);
   if(idx<0){setMode('seq');idx=no-1}
-  pos=idx;shown=st.ans[no]?no:null;render();scrollTop();
+  clearTimeout(autoTimer);pos=idx;shown=st.ans[no]?no:null;render();scrollTop();
 }
 function renderCells(){
   const q=cur(),c=document.getElementById('cells');
